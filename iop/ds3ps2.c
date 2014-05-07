@@ -5,29 +5,39 @@
 #include <usbd_macro.h>
 #include <string.h>
 
-void  rpc_thread(void *data);
-void *rpc_server_func(int command, void *buffer, int size);
+static void  rpc_thread(void *data);
+static void *rpc_server_func(int command, void *buffer, int size);
 
-SifRpcDataQueue_t  rpc_queue  __attribute__((aligned(64)));
-SifRpcServerData_t rpc_server __attribute__((aligned(64)));
+static SifRpcDataQueue_t  rpc_queue  __attribute__((aligned(64)));
+static SifRpcServerData_t rpc_server __attribute__((aligned(64)));
 
 static int _rpc_buffer[512] __attribute((aligned(64)));
-static u8 data_buf[DS3PS3_INPUT_LEN] __attribute((aligned(64)));
-//static int inputEndp;
-//static int outputEndp;
+static u8 data_buf[DS3PS3_MAX_SLOTS][DS3PS3_INPUT_LEN] __attribute((aligned(64)));
+static u8 opbuf[17] __attribute((aligned(64)));
 static int controlEndp;
 
-int usb_probe(int devId);
-int usb_connect(int devId);
-int usb_disconnect(int devId);
+static int usb_probe(int devId);
+static int usb_connect(int devId);
+static int usb_disconnect(int devId);
 
-UsbDriver driver = { NULL, NULL, "ds3ps2", usb_probe, usb_connect, usb_disconnect };
+static UsbDriver driver = { NULL, NULL, "ds3ps2", usb_probe, usb_connect, usb_disconnect };
 
 static void request_data(int result, int count, void *arg);
 static void config_set(int result, int count, void *arg);
-static void ds3_set_operational();
-static int send_ledsrumble();
-static void set_led(unsigned char n);
+static void ds3_set_operational(int slot);
+static int send_ledsrumble(int slot);
+static void set_led(int slot, unsigned char n);
+
+static struct {
+    int devID;
+    int connected;
+    int endp;
+    int led;
+    struct {
+        int time_r, power_r;
+        int time_l, power_l;
+    } rumble;
+} ds3_list[DS3PS3_MAX_SLOTS];
 
 int _start()
 {
@@ -68,55 +78,52 @@ int usb_probe(int devId)
     if (!dev)
         return 0;
     
-    if (dev->idVendor == DS3_VID && dev->idProduct == DS3_PID)
+    if (dev->idVendor == DS3_VID && dev->idProduct == DS3_PID) {
+        //Check if there's an available slot
+        if (ds3_list[0].connected && ds3_list[1].connected) return 0;
         return 1;
+    }
     
     return 0;
 }
 
 int usb_connect(int devId)
 {
-    UsbDeviceDescriptor    *dev;
-    UsbConfigDescriptor    *conf;
-    //UsbInterfaceDescriptor *intf;
-    //UsbEndpointDescriptor  *endp;
+    UsbDeviceDescriptor *dev;
+    UsbConfigDescriptor *conf;
     
-    int configEndp;
-
     dev = UsbGetDeviceStaticDescriptor(devId, NULL, USB_DT_DEVICE);
     conf = UsbGetDeviceStaticDescriptor(devId, dev, USB_DT_CONFIG);
-    configEndp = UsbOpenEndpoint(devId, NULL);
+    controlEndp = UsbOpenEndpoint(devId, NULL);
     
-    controlEndp = configEndp;
-    /*
-    intf = (UsbInterfaceDescriptor *) ((char *) conf + conf->bLength);
-    endp = (UsbEndpointDescriptor *) ((char *) intf + intf->bLength); // HID endpoint
-    controlEndp = UsbOpenEndpoint(devId, endp);
-    endp = (UsbEndpointDescriptor *) ((char *) endp + endp->bLength); // Interrupt Input endpoint
-    inputEndp = UsbOpenEndpoint(devId, endp);
-    endp = (UsbEndpointDescriptor *) ((char *) endp + endp->bLength); // Interrupt Output endpoint
-    outputEndp = UsbOpenEndpoint(devId, endp);
-    */
-    
+    int slot = 0;
+    if (ds3_list[0].connected) slot = 1;
+    ds3_list[slot].endp = controlEndp;
+    ds3_list[slot].connected = 1;
+    ds3_list[slot].devID = devId;
+
     UsbSetDevicePrivateData(devId, NULL);
-    UsbSetDeviceConfiguration(configEndp, conf->bConfigurationValue, config_set, NULL);
+    UsbSetDeviceConfiguration(controlEndp, conf->bConfigurationValue, config_set, (void*)slot);
     return 0;
 }
 
 int usb_disconnect(int devId)
 {
-    return 0;
+    if (devId == ds3_list[0].devID) ds3_list[0].connected = 0;
+    else ds3_list[1].connected = 0;
+    return 1;
 }
 
 static void config_set(int result, int count, void *arg)
 {
+    int slot = (int)arg;
     //Set operational
-    ds3_set_operational();
+    ds3_set_operational(slot);
     //Set LED
-    set_led(1);
-    send_ledsrumble();
+    set_led(slot, slot+1);
+    send_ledsrumble(slot);
     //Start reading!
-    request_data(0, 0, NULL);
+    request_data(0, 0, (void *)slot);
 }
 
 #define INTERFACE_GET (USB_DIR_IN|USB_TYPE_CLASS|USB_RECIP_INTERFACE)
@@ -127,21 +134,21 @@ static void config_set(int result, int count, void *arg)
 
 static void request_data(int result, int count, void *arg)
 {
-    UsbControlTransfer(controlEndp,
+    int slot = (int)arg;
+    UsbControlTransfer(ds3_list[slot].endp,
         INTERFACE_GET,
         USB_REQ_GET_REPORT,
         (USB_REPTYPE_INPUT<<8) | 0x01,
         0x0,
         DS3PS3_INPUT_LEN,
-        data_buf,
+        data_buf[slot],
         request_data,
-        NULL);
+        arg);
 }
 
-u8 opbuf[17] __attribute((aligned(64)));
-static void ds3_set_operational()
+static void ds3_set_operational(int slot)
 {
-    UsbControlTransfer(controlEndp,
+    UsbControlTransfer(ds3_list[slot].endp,
         INTERFACE_GET,
         USB_REQ_GET_REPORT,
         (USB_REPTYPE_FEATURE<<8) | 0xf2,
@@ -165,9 +172,15 @@ static u8 __attribute__((aligned(64))) ledsrumble_buf[] =
     0xff, 0x27, 0x10, 0x00, 0x32, /* LED_1 */
 };
 
-static int send_ledsrumble()
+static int send_ledsrumble(int slot)
 {
-    return UsbControlTransfer(controlEndp,
+    ledsrumble_buf[9] = led_pattern[ds3_list[slot].led];
+    ledsrumble_buf[1] = ds3_list[slot].rumble.time_r;
+    ledsrumble_buf[2] = ds3_list[slot].rumble.power_r;
+    ledsrumble_buf[3] = ds3_list[slot].rumble.time_l;
+    ledsrumble_buf[4] = ds3_list[slot].rumble.power_l;
+    
+    return UsbControlTransfer(ds3_list[slot].endp,
         INTERFACE_SET,
         USB_REQ_SET_REPORT,
         (USB_REPTYPE_OUTPUT<<8) | 0x01,
@@ -177,36 +190,40 @@ static int send_ledsrumble()
         NULL, NULL);  
 }
 
-static void set_led(unsigned char n)
+static void set_led(int slot, unsigned char n)
 {
-    ledsrumble_buf[9] = led_pattern[n];
+    ds3_list[slot].led = n;
 }
 
-static void set_rumble(unsigned char power_r, unsigned char time_r, 
+static void set_rumble(int slot, unsigned char power_r, unsigned char time_r, 
     unsigned char power_l, unsigned char time_l)
 {
-    ledsrumble_buf[1] = time_r;
-    ledsrumble_buf[2] = power_r;
-    ledsrumble_buf[3] = time_l;
-    ledsrumble_buf[4] = power_l;
+    ds3_list[slot].rumble.time_r = time_r;
+    ds3_list[slot].rumble.power_r = power_r;
+    ds3_list[slot].rumble.time_l = time_l;
+    ds3_list[slot].rumble.power_l = power_l;
 }
 
 void *rpc_server_func(int command, void *buffer, int size)
 {
     u8 *b8 = (u8*)buffer;
+    int slot = b8[0];
     
     switch (command) {
     case DS3PS2_SET_LED:
-        set_led(b8[0]);
+        set_led(slot, b8[1]);
         break;
     case DS3PS2_SET_RUMBLE:
-        set_rumble(b8[0], b8[1], b8[2], b8[3]);
+        set_rumble(slot, b8[1], b8[2], b8[3], b8[4]);
         break;
     case DS3PS2_SEND_LEDSRUMBLE:
-        send_ledsrumble();
+        send_ledsrumble(slot);
         break;
     case DS3PS2_GET_INPUT:
-        memcpy(buffer, data_buf, size);
+        memcpy(buffer, data_buf[slot], size);
+        break;
+    case DS3PS2_SLOT_CONNECTED:
+        b8[0] = ds3_list[slot].connected;
         break;
     }
     

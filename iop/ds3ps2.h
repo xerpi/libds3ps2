@@ -7,11 +7,16 @@
 #define DS3_PID 0x0268
 #define DS3PS3_INPUT_LEN 49
 
+#define DS3PS3_MAX_SLOTS 2
+#define DS3PS3_SLOT_1 0
+#define DS3PS3_SLOT_2 1
+
 enum ds3ps2_commands {
-    DS3PS2_SET_LED,              //(n)
-    DS3PS2_SET_RUMBLE,           //(power_r, time_r, power_l, time_l)
-    DS3PS2_SEND_LEDSRUMBLE,      //(void)
-    DS3PS2_GET_INPUT             //(struct)
+    DS3PS2_SET_LED,              //(slot, n)
+    DS3PS2_SET_RUMBLE,           //(slot, power_r, time_r, power_l, time_l)
+    DS3PS2_SEND_LEDSRUMBLE,      //(slot, void)
+    DS3PS2_GET_INPUT,            //(slot, struct)
+    DS3PS2_SLOT_CONNECTED        //(slot)
 };
 
 #endif

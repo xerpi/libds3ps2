@@ -67,41 +67,41 @@ struct SS_BUTTON_SENSITIVE
 
 struct SS_MOTION
 {
-    u16 acc_x;
-    u16 acc_y;
-    u16 acc_z;
-    u16 z_gyro;
+    s16 acc_x;
+    s16 acc_y;
+    s16 acc_z;
+    s16 z_gyro;
 };
 
 struct SS_GAMEPAD
 {
-    u8                        hid_data;
-    u8                        unk0;
-    struct SS_BUTTONS         buttons;
-    u8                        unk1;
-    struct SS_ANALOG          left_analog;
-    struct SS_ANALOG          right_analog;
-    u32                       unk2;
+    u8                             hid_data;
+    u8                             unk0;
+    struct SS_BUTTONS              buttons;
+    u8                             unk1;
+    struct SS_ANALOG               left_analog;
+    struct SS_ANALOG               right_analog;
+    u32                            unk2;
     struct SS_DPAD_SENSITIVE       dpad_sens;
     struct SS_SHOULDER_SENSITIVE   shoulder_sens;
     struct SS_BUTTON_SENSITIVE     button_sens;
-    u16                       unk3;
-    u8                        unk4;
-    u8                        status;
-    u8                        power_rating;
-    u8                        comm_status;
-    u32                       unk5;
-    u32                       unk6;
-    u8                        unk7;
+    u16                            unk3;
+    u8                             unk4;
+    u8                             status;
+    u8                             power_rating;
+    u8                             comm_status;
+    u32                            unk5;
+    u32                            unk6;
+    u8                             unk7;
     struct SS_MOTION               motion;
-    u8 lala[40];
 } __attribute__((packed, aligned(32)));
 
 
 #define DEG2RAD(x) ((x)*0.01745329251)
 void draw_circle(GSGLOBAL *gsGlobal, float x, float y, float radius, u64 color, u8 filled);
-void print_data(struct SS_GAMEPAD *data);
+int print_data(int y, struct SS_GAMEPAD *data);
 void random_leds();
+void correct_data(struct SS_GAMEPAD *data);
 
 GSGLOBAL *gsGlobal;
 GSFONTM *gsFontM;
@@ -134,49 +134,62 @@ int main(void)
     gsKit_mode_switch(gsGlobal, GS_ONESHOT);
     
     SifLoadModule("mass:/ds3ps2.irx", 0, NULL);
-    struct SS_GAMEPAD ds3;
+    struct SS_GAMEPAD ds3_1, ds3_2;
     ds3ps2_init();
     random_leds();
     
     float pos_x = gsGlobal->Width/2, pos_y = gsGlobal->Height/2;
 
-    while (1) {
+    while (!(ds3_1.buttons.PS && ds3_1.buttons.start)) {
         gsKit_clear(gsGlobal, White);
         
-        memset(&ds3, 0x0, sizeof(struct SS_GAMEPAD));
-        ds3ps2_get_input((void*)&ds3);
-        //correct_data(&ds3);
+        memset(&ds3_1, 0x0, sizeof(struct SS_GAMEPAD));
+        ds3ps2_get_input(DS3PS3_SLOT_1, (void*)&ds3_1);
+        correct_data(&ds3_1);
         
-        /*if (ds3.L1) {pos_x = gsGlobal->Width/2, pos_y = gsGlobal->Height/2;}
-        if (ds3.R1) {random_leds();}
-        //1920x940
-        if (ds3.finger1active) {
-            draw_circle(gsGlobal, (gsGlobal->Width/1920.0f)*ds3.finger1X, (gsGlobal->Height/940.0f)*ds3.finger1Y, 14, Red, 1);
-        }
-        if (ds3.finger2active) {
-            draw_circle(gsGlobal, (gsGlobal->Width/1920.0f)*ds3.finger2X, (gsGlobal->Height/940.0f)*ds3.finger2Y, 14, Blue, 1);
-        }
-        */
+        memset(&ds3_2, 0x0, sizeof(struct SS_GAMEPAD));
+        ds3ps2_get_input(DS3PS3_SLOT_2, (void*)&ds3_2);
+        correct_data(&ds3_2);
         
-        #define THRESHOLD 25.0f
-        if (fabs(ds3.motion.acc_x) > THRESHOLD)
-            pos_y -= ds3.motion.acc_x/55.0f;
-        if (fabs(ds3.motion.acc_y) > THRESHOLD)
-            pos_x -= ds3.motion.acc_y/55.0f;
+        if (ds3_1.buttons.L1) {pos_x = gsGlobal->Width/2, pos_y = gsGlobal->Height/2;}
+        if (ds3_1.buttons.R1) {random_leds();}
+
+        
+        #define THRESHOLD 5.0f
+        if (fabs(ds3_1.motion.acc_y) > THRESHOLD)
+            pos_y -= ds3_1.motion.acc_y;
+        if (fabs(ds3_1.motion.z_gyro) > THRESHOLD)
+            pos_x -= ds3_1.motion.z_gyro/5.0f;
         
         CircleColor = GS_SETREG_RGBAQ(r, g, b, 0x00, 0x00);
         draw_circle(gsGlobal, pos_x, pos_y, 19, CircleColor, 0);
         draw_circle(gsGlobal, pos_x, pos_y, 18, CircleColor, 0);
         draw_circle(gsGlobal, pos_x, pos_y, 17, CircleColor, 0);
         draw_circle(gsGlobal, pos_x, pos_y, 16, CircleColor, 0);
+        
+        char text[64];
+        sprintf(text, "connected: SLOT_1 %i   SLOT_2 %i", ds3ps2_slot_connected(DS3PS3_SLOT_1),
+            ds3ps2_slot_connected(DS3PS3_SLOT_2));
+        gsKit_fontm_print_scaled(gsGlobal, gsFontM, 5, 10, 3, 0.5f, FontColor, text);
      
-        print_data(&ds3);
+        int y = print_data(30, &ds3_1);
+        print_data(y+10, &ds3_2);
 
         gsKit_sync_flip(gsGlobal);
         gsKit_queue_exec(gsGlobal);
     }
 
     return 0;
+}
+
+#define swap16(x) (((x&0xFF)<<8)|((x>>8)&0xFF))
+#define zeroG 511.5
+void correct_data(struct SS_GAMEPAD *data)
+{
+    data->motion.acc_x = swap16(data->motion.acc_x) - zeroG;
+    data->motion.acc_y = swap16(data->motion.acc_y) - zeroG;
+    data->motion.acc_z = swap16(data->motion.acc_z) - zeroG;
+    data->motion.z_gyro = swap16(data->motion.z_gyro) - zeroG;
 }
 
 void random_leds()
@@ -189,10 +202,10 @@ void random_leds()
 }
 
 
-void print_data(struct SS_GAMEPAD *data)
+int print_data(int y, struct SS_GAMEPAD *data)
 { 
     char text[512];
-    int y = 20, x = 5;
+    int x = 5;
     
     sprintf(text,"PS: %i   START: %i   SELECT: %i   /\\: %i   []: %i   O: %i   X: %i", \
             data->buttons.PS, data->buttons.start, data->buttons.select, data->buttons.triangle, \
@@ -223,7 +236,8 @@ void print_data(struct SS_GAMEPAD *data)
     sprintf(text,"UP: %i   DOWN: %i   RIGHT: %i   LEFT: %i", \
             data->dpad_sens.up, data->dpad_sens.down, data->dpad_sens.right, data->dpad_sens.left);
     gsKit_fontm_print_scaled(gsGlobal, gsFontM, x, y+=30, 3, 0.5f, FontColor, text);
-            
+    
+    return y;
 }
 
 void draw_circle(GSGLOBAL *gsGlobal, float x, float y, float radius, u64 color, u8 filled)
