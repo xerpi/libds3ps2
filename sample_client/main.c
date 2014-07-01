@@ -133,7 +133,17 @@ int main(void)
     gsFontM->Spacing = 0.75f;
     gsKit_mode_switch(gsGlobal, GS_ONESHOT);
     
-    SifLoadModule("mass:/ds3ps2.irx", 0, NULL);
+    int ret = SifLoadModule("mass:/ds3ps2.irx", 0, NULL);
+    if (ret < 0) {
+        char *txt = "Could not find 'mass:/ds3ps2.irx'";
+        while (1) {
+            gsKit_clear(gsGlobal, White);
+            gsKit_fontm_print_scaled(gsGlobal, gsFontM, 5, 10, 3, 0.5f, FontColor, txt);
+            gsKit_sync_flip(gsGlobal);
+            gsKit_queue_exec(gsGlobal);
+        }
+    }
+    
     struct SS_GAMEPAD ds3_1, ds3_2;
     ds3ps2_init();
     random_leds();

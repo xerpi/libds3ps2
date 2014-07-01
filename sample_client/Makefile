@@ -10,7 +10,7 @@ clean:
 
 #FOR ME!!
 copy: $(EE_BIN)
-	cp $(EE_BIN) /media/xerpi/41D1-9CF2
+	cp $(EE_BIN) /media/$(USER)/disk
 	sync
 
 include $(PS2SDK)/samples/Makefile.pref

@@ -15,7 +15,7 @@ install: $(IOP_BIN)
 
 #FOR ME!!
 copy: $(IOP_BIN)
-	cp $(IOP_BIN) /media/xerpi/41D1-9CF2
+	cp $(IOP_BIN) /media/$(USER)/disk
 	sync
 
 include $(PS2SDK)/samples/Makefile.pref
