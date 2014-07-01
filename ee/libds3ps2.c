@@ -23,10 +23,9 @@ int ds3ps2_init()
     return 1;
 }
 
-static unsigned char connected = 0;
 int ds3ps2_slot_connected(int slot)
 {
-    connected = slot;
+    unsigned char connected = slot;
     SifCallRpc(&ds3ps2if, DS3PS2_SLOT_CONNECTED, 0,
         &connected, 1, &connected, 1, NULL, NULL);
     return connected;

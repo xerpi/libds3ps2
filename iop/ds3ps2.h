@@ -8,8 +8,10 @@
 #define DS3PS3_INPUT_LEN 49
 
 #define DS3PS3_MAX_SLOTS 2
-#define DS3PS3_SLOT_1 0
-#define DS3PS3_SLOT_2 1
+enum DS3PS3_SLOTS {
+    DS3PS3_SLOT_1,
+    DS3PS3_SLOT_2
+};
 
 enum ds3ps2_commands {
     DS3PS2_SET_LED,              //(slot, n)

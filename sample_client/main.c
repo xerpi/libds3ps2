@@ -9,6 +9,14 @@
 #include <gsToolkit.h>
 #include <libds3ps2.h>
 
+void video_init();
+void clear_screen();
+void flip_screen();
+GSGLOBAL *gsGlobal;
+GSFONTM *gsFontM;
+u64 White, Black, FontColor, Red, Blue, CircleColor;
+#define font_print(x, y, text) \
+    gsKit_fontm_print_scaled(gsGlobal, gsFontM, x, y, 3, 0.5f, FontColor, text) 
 
 struct SS_BUTTONS
 {
@@ -100,58 +108,32 @@ struct SS_GAMEPAD
 #define DEG2RAD(x) ((x)*0.01745329251)
 void draw_circle(GSGLOBAL *gsGlobal, float x, float y, float radius, u64 color, u8 filled);
 int print_data(int y, struct SS_GAMEPAD *data);
-void random_leds();
 void correct_data(struct SS_GAMEPAD *data);
 
-GSGLOBAL *gsGlobal;
-GSFONTM *gsFontM;
-u64 White, Black, FontColor, Red, Blue, CircleColor;
-u8 r = 0xFF, g=0x00, b=0x00;
 
 int main(void)
 {
-    gsGlobal = gsKit_init_global();
-    gsFontM = gsKit_init_fontm();
-
-    dmaKit_init(D_CTRL_RELE_OFF,D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC,
-    D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
-
-    // Initialize the DMAC
-    dmaKit_chan_init(DMA_CHANNEL_GIF);
-    dmaKit_chan_init(DMA_CHANNEL_FROMSPR);
-    dmaKit_chan_init(DMA_CHANNEL_TOSPR);
-
-    Black = GS_SETREG_RGBAQ(0x00,0x00,0x00,0xFF,0x00);
-    White = GS_SETREG_RGBAQ(0xFF,0xFF,0xFF,0x00,0x00);
-    Red = GS_SETREG_RGBAQ(0xFF,0x00,0x00,0x00,0x00);
-    Blue = GS_SETREG_RGBAQ(0x00,0x00,0xFF,0x00,0x00);
-    FontColor = GS_SETREG_RGBAQ(0x2F,0x20,0x20,0xFF,0x00);
-
-    gsGlobal->PrimAlphaEnable = GS_SETTING_ON;
-    gsKit_init_screen(gsGlobal);
-    gsKit_fontm_upload(gsGlobal, gsFontM);
-    gsFontM->Spacing = 0.75f;
-    gsKit_mode_switch(gsGlobal, GS_ONESHOT);
+    video_init();
     
     int ret = SifLoadModule("mass:/ds3ps2.irx", 0, NULL);
     if (ret < 0) {
         char *txt = "Could not find 'mass:/ds3ps2.irx'";
         while (1) {
-            gsKit_clear(gsGlobal, White);
-            gsKit_fontm_print_scaled(gsGlobal, gsFontM, 5, 10, 3, 0.5f, FontColor, txt);
-            gsKit_sync_flip(gsGlobal);
-            gsKit_queue_exec(gsGlobal);
+            clear_screen();
+            font_print(5, 10, txt);
+            flip_screen();
         }
     }
     
     struct SS_GAMEPAD ds3_1, ds3_2;
     ds3ps2_init();
-    random_leds();
     
     float pos_x = gsGlobal->Width/2, pos_y = gsGlobal->Height/2;
-
+    char text_connected[64];
+    int led = 1, old_r1 = 0;
+    
     while (!(ds3_1.buttons.PS && ds3_1.buttons.start)) {
-        gsKit_clear(gsGlobal, White);
+        clear_screen();
         
         memset(&ds3_1, 0x0, sizeof(struct SS_GAMEPAD));
         ds3ps2_get_input(DS3PS3_SLOT_1, (void*)&ds3_1);
@@ -162,7 +144,13 @@ int main(void)
         correct_data(&ds3_2);
         
         if (ds3_1.buttons.L1) {pos_x = gsGlobal->Width/2, pos_y = gsGlobal->Height/2;}
-        if (ds3_1.buttons.R1) {random_leds();}
+        if (ds3_1.buttons.R1 && !old_r1) {
+            led++;
+            if (led > 7) led = 0;
+            ds3ps2_set_led(DS3PS3_SLOT_1, led);
+            ds3ps2_send_ledsrumble(DS3PS3_SLOT_1);
+        }
+        old_r1 = ds3_1.buttons.R1;
 
         
         #define THRESHOLD 5.0f
@@ -171,22 +159,19 @@ int main(void)
         if (fabs(ds3_1.motion.z_gyro) > THRESHOLD)
             pos_x -= ds3_1.motion.z_gyro/5.0f;
         
-        CircleColor = GS_SETREG_RGBAQ(r, g, b, 0x00, 0x00);
         draw_circle(gsGlobal, pos_x, pos_y, 19, CircleColor, 0);
         draw_circle(gsGlobal, pos_x, pos_y, 18, CircleColor, 0);
         draw_circle(gsGlobal, pos_x, pos_y, 17, CircleColor, 0);
         draw_circle(gsGlobal, pos_x, pos_y, 16, CircleColor, 0);
         
-        char text[64];
-        sprintf(text, "connected: SLOT_1 %i   SLOT_2 %i", ds3ps2_slot_connected(DS3PS3_SLOT_1),
+        sprintf(text_connected, "connected: SLOT_1 %i   SLOT_2 %i", ds3ps2_slot_connected(DS3PS3_SLOT_1),
             ds3ps2_slot_connected(DS3PS3_SLOT_2));
-        gsKit_fontm_print_scaled(gsGlobal, gsFontM, 5, 10, 3, 0.5f, FontColor, text);
+        font_print(5, 10, text_connected);
      
         int y = print_data(30, &ds3_1);
         print_data(y+10, &ds3_2);
 
-        gsKit_sync_flip(gsGlobal);
-        gsKit_queue_exec(gsGlobal);
+        flip_screen();
     }
 
     return 0;
@@ -202,50 +187,40 @@ void correct_data(struct SS_GAMEPAD *data)
     data->motion.z_gyro = swap16(data->motion.z_gyro) - zeroG;
 }
 
-void random_leds()
-{
-    r = rand()%0xFF;
-    g = rand()%0xFF;
-    b = rand()%0xFF;
-    //ds3ps2_set_led(1);
-    //ds3ps2_send_ledsrumble();
-}
-
-
 int print_data(int y, struct SS_GAMEPAD *data)
 { 
-    char text[512];
+    char text[256];
     int x = 5;
     
     sprintf(text,"PS: %i   START: %i   SELECT: %i   /\\: %i   []: %i   O: %i   X: %i", \
             data->buttons.PS, data->buttons.start, data->buttons.select, data->buttons.triangle, \
             data->buttons.square, data->buttons.circle, data->buttons.cross);
-    gsKit_fontm_print_scaled(gsGlobal, gsFontM, x, y+=30, 3, 0.5f, FontColor, text);
+    font_print(x, y+=30, text);
 
     sprintf(text,"L3: %i   R3: %i   L1: %i   L2: %i   R1: %i   R2: %i", \
              data->buttons.L3, data->buttons.R3, data->buttons.L1, data->buttons.L2, data->buttons.R1, data->buttons.R2);
-    gsKit_fontm_print_scaled(gsGlobal, gsFontM, x, y+=30, 3, 0.5f, FontColor, text);
+    font_print(x, y+=30, text);
 
     sprintf(text,"UP: %i   DOWN: %i   RIGHT: %i   LEFT: %i   LX: %i   LY: %i   RX: %i   RY: %i", \
             data->buttons.up, data->buttons.down, data->buttons.right, data->buttons.left,
             data->left_analog.x, data->left_analog.y, data->right_analog.x, data->right_analog.y);
-    gsKit_fontm_print_scaled(gsGlobal, gsFontM, x, y+=30, 3, 0.5f, FontColor, text);
+    font_print(x, y+=30, text);
 
     sprintf(text,"aX: %i   aY: %i   aZ: %i   Zgyro: %i", \
             data->motion.acc_x, data->motion.acc_y, data->motion.acc_z, data->motion.z_gyro);
-    gsKit_fontm_print_scaled(gsGlobal, gsFontM, x, y+=30, 3, 0.5f, FontColor, text);
+    font_print(x, y+=30, text);
 
     sprintf(text,"L1 predata: %i   L2 predata: %i   R1 predata: %i   R2 predata: %i", \
             data->shoulder_sens.L1, data->shoulder_sens.L2, data->shoulder_sens.R1, data->shoulder_sens.R2);
-    gsKit_fontm_print_scaled(gsGlobal, gsFontM, x, y+=30, 3, 0.5f, FontColor, text);
+    font_print(x, y+=30, text);
 
     sprintf(text,"/\\ predata: %i   [] predata: %i   O predata: %i   X predata: %i",
             data->button_sens.triangle, data->button_sens.square, data->button_sens.circle, data->button_sens.cross);
-    gsKit_fontm_print_scaled(gsGlobal, gsFontM, x, y+=30, 3, 0.5f, FontColor, text);
+    font_print(x, y+=30, text);
 
     sprintf(text,"UP: %i   DOWN: %i   RIGHT: %i   LEFT: %i", \
             data->dpad_sens.up, data->dpad_sens.down, data->dpad_sens.right, data->dpad_sens.left);
-    gsKit_fontm_print_scaled(gsGlobal, gsFontM, x, y+=30, 3, 0.5f, FontColor, text);
+    font_print(x, y+=30, text);
     
     return y;
 }
@@ -269,3 +244,39 @@ void draw_circle(GSGLOBAL *gsGlobal, float x, float y, float radius, u64 color, 
     else        gsKit_prim_line_strip(gsGlobal, v, 37, 3, color);
 }
 
+void video_init()
+{
+    gsGlobal = gsKit_init_global();
+    gsFontM = gsKit_init_fontm();
+
+    dmaKit_init(D_CTRL_RELE_OFF,D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC,
+    D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
+
+    // Initialize the DMAC
+    dmaKit_chan_init(DMA_CHANNEL_GIF);
+    dmaKit_chan_init(DMA_CHANNEL_FROMSPR);
+    dmaKit_chan_init(DMA_CHANNEL_TOSPR);
+
+    Black = GS_SETREG_RGBAQ(0x00,0x00,0x00,0xFF,0x00);
+    White = GS_SETREG_RGBAQ(0xFF,0xFF,0xFF,0x00,0x00);
+    Red = CircleColor = GS_SETREG_RGBAQ(0xFF,0x00,0x00,0x00,0x00);
+    Blue = GS_SETREG_RGBAQ(0x00,0x00,0xFF,0x00,0x00);
+    FontColor = GS_SETREG_RGBAQ(0x2F,0x20,0x20,0xFF,0x00);
+
+    gsGlobal->PrimAlphaEnable = GS_SETTING_ON;
+    gsKit_init_screen(gsGlobal);
+    gsKit_fontm_upload(gsGlobal, gsFontM);
+    gsFontM->Spacing = 0.75f;
+    gsKit_mode_switch(gsGlobal, GS_ONESHOT);
+}
+
+void clear_screen()
+{
+    gsKit_clear(gsGlobal, White);
+}
+
+void flip_screen()
+{
+    gsKit_sync_flip(gsGlobal);
+    gsKit_queue_exec(gsGlobal);
+}
