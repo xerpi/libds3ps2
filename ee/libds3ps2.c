@@ -1,6 +1,6 @@
-#include "libds3ps2.h"
 #include <kernel.h>
 #include <sifrpc.h>
+#include "libds3ps2.h"
 
 static SifRpcClientData_t ds3ps2if __attribute__((aligned(64)));
 static u8 ds3ps2_buffer[5]         __attribute__((aligned(64)));

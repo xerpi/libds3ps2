@@ -1,9 +1,9 @@
-#include "ds3ps2.h"
 #include <thbase.h>
 #include <sifcmd.h>
 #include <usbd.h>
 #include <usbd_macro.h>
 #include <string.h>
+#include "ds3ps2.h"
 
 static void  rpc_thread(void *data);
 static void *rpc_server_func(int command, void *buffer, int size);
@@ -132,6 +132,25 @@ static void config_set(int result, int count, void *arg)
 #define USB_REPTYPE_OUTPUT      0x02
 #define USB_REPTYPE_FEATURE     0x03
 
+
+#define swap16(x) (((x&0xFF)<<8)|((x>>8)&0xFF))
+#define zeroG 511.5
+static void correct_data(struct SS_GAMEPAD *data)
+{
+    data->motion.acc_x = swap16(data->motion.acc_x) - zeroG;
+    data->motion.acc_y = swap16(data->motion.acc_y) - zeroG;
+    data->motion.acc_z = swap16(data->motion.acc_z) - zeroG;
+    data->motion.z_gyro = swap16(data->motion.z_gyro) - zeroG;
+}
+
+static void request_data_cb(int result, int count, void *arg)
+{
+    int slot = (int)arg;
+    correct_data((struct SS_GAMEPAD *)data_buf[slot]);
+    request_data(0, 0, (void *)slot);
+}
+
+
 static void request_data(int result, int count, void *arg)
 {
     int slot = (int)arg;
@@ -142,7 +161,7 @@ static void request_data(int result, int count, void *arg)
         0x0,
         DS3PS2_INPUT_LEN,
         data_buf[slot],
-        request_data,
+        request_data_cb,
         arg);
 }
 

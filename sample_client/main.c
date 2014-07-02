@@ -18,93 +18,6 @@ u64 White, Black, FontColor, Red, Blue, CircleColor;
 #define font_print(x, y, text) \
     gsKit_fontm_print_scaled(gsGlobal, gsFontM, x, y, 3, 0.5f, FontColor, text) 
 
-struct SS_BUTTONS
-{
-    u8 select   : 1;
-    u8 L3       : 1;
-    u8 R3       : 1;
-    u8 start    : 1;    
-    u8 up       : 1;        
-    u8 right    : 1;
-    u8 down     : 1;
-    u8 left     : 1;
-
-
-    u8 L2       : 1;
-    u8 R2       : 1;
-    u8 L1       : 1;
-    u8 R1       : 1;
-    u8 triangle : 1;    
-    u8 circle   : 1;
-    u8 cross    : 1;    
-    u8 square   : 1;
-
-    u8 PS       : 1;
-    u8 not_used : 7;
-};
-
-struct SS_ANALOG
-{
-    u8 x;
-    u8 y;
-};
-
-struct SS_DPAD_SENSITIVE
-{
-    u8 up;
-    u8 right;
-    u8 down;
-    u8 left;
-};
-
-struct SS_SHOULDER_SENSITIVE
-{
-    u8 L2;
-    u8 R2;
-    u8 L1;
-    u8 R1;
-};
-
-struct SS_BUTTON_SENSITIVE
-{
-    u8 triangle;
-    u8 circle;
-    u8 cross;
-    u8 square;
-};
-
-struct SS_MOTION
-{
-    s16 acc_x;
-    s16 acc_y;
-    s16 acc_z;
-    s16 z_gyro;
-};
-
-struct SS_GAMEPAD
-{
-    u8                             hid_data;
-    u8                             unk0;
-    struct SS_BUTTONS              buttons;
-    u8                             unk1;
-    struct SS_ANALOG               left_analog;
-    struct SS_ANALOG               right_analog;
-    u32                            unk2;
-    struct SS_DPAD_SENSITIVE       dpad_sens;
-    struct SS_SHOULDER_SENSITIVE   shoulder_sens;
-    struct SS_BUTTON_SENSITIVE     button_sens;
-    u16                            unk3;
-    u8                             unk4;
-    u8                             status;
-    u8                             power_rating;
-    u8                             comm_status;
-    u32                            unk5;
-    u32                            unk6;
-    u8                             unk7;
-    struct SS_MOTION               motion;
-} __attribute__((packed, aligned(32)));
-
-
 #define DEG2RAD(x) ((x)*0.01745329251)
 void draw_circle(GSGLOBAL *gsGlobal, float x, float y, float radius, u64 color, u8 filled);
 int print_data(int y, struct SS_GAMEPAD *data);
@@ -126,6 +39,8 @@ int main(void)
     }
     
     struct SS_GAMEPAD ds3_1, ds3_2;
+    memset(&ds3_1, 0x0, sizeof(struct SS_GAMEPAD));
+    memset(&ds3_2, 0x0, sizeof(struct SS_GAMEPAD));
     ds3ps2_init();
     
     float pos_x = gsGlobal->Width/2, pos_y = gsGlobal->Height/2;
@@ -134,14 +49,9 @@ int main(void)
     
     while (!(ds3_1.buttons.PS && ds3_1.buttons.start)) {
         clear_screen();
-        
-        memset(&ds3_1, 0x0, sizeof(struct SS_GAMEPAD));
+
         ds3ps2_get_input(DS3PS2_SLOT_1, (void*)&ds3_1);
-        correct_data(&ds3_1);
-        
-        memset(&ds3_2, 0x0, sizeof(struct SS_GAMEPAD));
         ds3ps2_get_input(DS3PS2_SLOT_2, (void*)&ds3_2);
-        correct_data(&ds3_2);
         
         if (ds3_1.buttons.L1) {pos_x = gsGlobal->Width/2, pos_y = gsGlobal->Height/2;}
         if (ds3_1.buttons.R1 && !old_r1) {
@@ -175,16 +85,6 @@ int main(void)
     }
 
     return 0;
-}
-
-#define swap16(x) (((x&0xFF)<<8)|((x>>8)&0xFF))
-#define zeroG 511.5
-void correct_data(struct SS_GAMEPAD *data)
-{
-    data->motion.acc_x = swap16(data->motion.acc_x) - zeroG;
-    data->motion.acc_y = swap16(data->motion.acc_y) - zeroG;
-    data->motion.acc_z = swap16(data->motion.acc_z) - zeroG;
-    data->motion.z_gyro = swap16(data->motion.z_gyro) - zeroG;
 }
 
 int print_data(int y, struct SS_GAMEPAD *data)
