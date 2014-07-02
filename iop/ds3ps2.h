@@ -5,12 +5,12 @@
 
 #define DS3_VID 0x054C
 #define DS3_PID 0x0268
-#define DS3PS3_INPUT_LEN 49
+#define DS3PS2_INPUT_LEN 49
 
-#define DS3PS3_MAX_SLOTS 2
-enum DS3PS3_SLOTS {
-    DS3PS3_SLOT_1,
-    DS3PS3_SLOT_2
+#define DS3PS2_MAX_SLOTS 2
+enum DS3PS2_SLOTS {
+    DS3PS2_SLOT_1,
+    DS3PS2_SLOT_2
 };
 
 enum ds3ps2_commands {

@@ -136,19 +136,19 @@ int main(void)
         clear_screen();
         
         memset(&ds3_1, 0x0, sizeof(struct SS_GAMEPAD));
-        ds3ps2_get_input(DS3PS3_SLOT_1, (void*)&ds3_1);
+        ds3ps2_get_input(DS3PS2_SLOT_1, (void*)&ds3_1);
         correct_data(&ds3_1);
         
         memset(&ds3_2, 0x0, sizeof(struct SS_GAMEPAD));
-        ds3ps2_get_input(DS3PS3_SLOT_2, (void*)&ds3_2);
+        ds3ps2_get_input(DS3PS2_SLOT_2, (void*)&ds3_2);
         correct_data(&ds3_2);
         
         if (ds3_1.buttons.L1) {pos_x = gsGlobal->Width/2, pos_y = gsGlobal->Height/2;}
         if (ds3_1.buttons.R1 && !old_r1) {
             led++;
             if (led > 7) led = 0;
-            ds3ps2_set_led(DS3PS3_SLOT_1, led);
-            ds3ps2_send_ledsrumble(DS3PS3_SLOT_1);
+            ds3ps2_set_led(DS3PS2_SLOT_1, led);
+            ds3ps2_send_ledsrumble(DS3PS2_SLOT_1);
         }
         old_r1 = ds3_1.buttons.R1;
 
@@ -164,8 +164,8 @@ int main(void)
         draw_circle(gsGlobal, pos_x, pos_y, 17, CircleColor, 0);
         draw_circle(gsGlobal, pos_x, pos_y, 16, CircleColor, 0);
         
-        sprintf(text_connected, "connected: SLOT_1 %i   SLOT_2 %i", ds3ps2_slot_connected(DS3PS3_SLOT_1),
-            ds3ps2_slot_connected(DS3PS3_SLOT_2));
+        sprintf(text_connected, "connected: SLOT_1 %i   SLOT_2 %i", ds3ps2_slot_connected(DS3PS2_SLOT_1),
+            ds3ps2_slot_connected(DS3PS2_SLOT_2));
         font_print(5, 10, text_connected);
      
         int y = print_data(30, &ds3_1);

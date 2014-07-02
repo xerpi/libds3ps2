@@ -12,7 +12,7 @@ static SifRpcDataQueue_t  rpc_queue  __attribute__((aligned(64)));
 static SifRpcServerData_t rpc_server __attribute__((aligned(64)));
 
 static int _rpc_buffer[512] __attribute((aligned(64)));
-static u8 data_buf[DS3PS3_MAX_SLOTS][DS3PS3_INPUT_LEN] __attribute((aligned(64)));
+static u8 data_buf[DS3PS2_MAX_SLOTS][DS3PS2_INPUT_LEN] __attribute((aligned(64)));
 static u8 opbuf[17] __attribute((aligned(64)));
 static int controlEndp;
 
@@ -37,7 +37,7 @@ static struct {
         int time_r, power_r;
         int time_l, power_l;
     } rumble;
-} ds3_list[DS3PS3_MAX_SLOTS];
+} ds3_list[DS3PS2_MAX_SLOTS];
 
 int _start()
 {
@@ -140,7 +140,7 @@ static void request_data(int result, int count, void *arg)
         USB_REQ_GET_REPORT,
         (USB_REPTYPE_INPUT<<8) | 0x01,
         0x0,
-        DS3PS3_INPUT_LEN,
+        DS3PS2_INPUT_LEN,
         data_buf[slot],
         request_data,
         arg);
