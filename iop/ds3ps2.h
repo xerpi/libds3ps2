@@ -8,104 +8,92 @@
 
 #define DS3PS2_MAX_SLOTS 2
 enum DS3PS2_SLOTS {
-    DS3PS2_SLOT_1,
-    DS3PS2_SLOT_2
+	DS3PS2_SLOT_1,
+	DS3PS2_SLOT_2
 };
 
 enum ds3ps2_commands {
-    DS3PS2_SET_LED,              //(slot, n)
-    DS3PS2_SET_RUMBLE,           //(slot, power_r, time_r, power_l, time_l)
-    DS3PS2_SEND_LEDSRUMBLE,      //(slot, void)
-    DS3PS2_GET_INPUT,            //(slot, struct)
-    DS3PS2_SLOT_CONNECTED        //(slot)
+	DS3PS2_SET_LED,			//(slot, n)
+	DS3PS2_SET_RUMBLE,		//(slot, power_r, time_r, power_l, time_l)
+	DS3PS2_SEND_LEDSRUMBLE,	//(slot, void)
+	DS3PS2_GET_INPUT,		//(slot, struct)
+	DS3PS2_SLOT_CONNECTED	//(slot)
 };
 
-struct SS_BUTTONS
-{
-    u8 select   : 1;
-    u8 L3       : 1;
-    u8 R3       : 1;
-    u8 start    : 1;
-    u8 up       : 1;
-    u8 right    : 1;
-    u8 down     : 1;
-    u8 left     : 1;
+struct ds3_input {
+	unsigned char HID_data;
+	unsigned char unk0;
+	struct {
+		unsigned char left   : 1;
+		unsigned char down   : 1;
+		unsigned char right  : 1;
+		unsigned char up     : 1;
+		unsigned char start  : 1;
+		unsigned char R3     : 1;
+		unsigned char L3     : 1;
+		unsigned char select : 1;
 
+		unsigned char square   : 1;
+		unsigned char cross    : 1;
+		unsigned char circle   : 1;
+		unsigned char triangle : 1;
+		unsigned char R1       : 1;
+		unsigned char L1       : 1;
+		unsigned char R2       : 1;
+		unsigned char L2       : 1;
 
-    u8 L2       : 1;
-    u8 R2       : 1;
-    u8 L1       : 1;
-    u8 R1       : 1;
-    u8 triangle : 1;
-    u8 circle   : 1;
-    u8 cross    : 1;
-    u8 square   : 1;
+		unsigned char not_used : 7;
+		unsigned char PS       : 1;
+	};
+	unsigned char unk1;
+	unsigned char leftX;
+	unsigned char leftY;
+	unsigned char rightX;
+	unsigned char rightY;
 
-    u8 PS       : 1;
-    u8 not_used : 7;
-};
+	unsigned int unk2;
 
-struct SS_ANALOG
-{
-    u8 x;
-    u8 y;
-};
+	struct {
+		unsigned char up_sens;
+		unsigned char right_sens;
+		unsigned char down_sens;
+		unsigned char left_sens;
+	};
 
-struct SS_DPAD_SENSITIVE
-{
-    u8 up;
-    u8 right;
-    u8 down;
-    u8 left;
-};
+	struct {
+		unsigned char L2_sens;
+		unsigned char R2_sens;
+		unsigned char L1_sens;
+		unsigned char R1_sens;
+	};
 
-struct SS_SHOULDER_SENSITIVE
-{
-    u8 L2;
-    u8 R2;
-    u8 L1;
-    u8 R1;
-};
+	struct {
+		unsigned char triangle_sens;
+		unsigned char circle_sens;
+		unsigned char cross_sens;
+		unsigned char square_sens;
+	};
 
-struct SS_BUTTON_SENSITIVE
-{
-    u8 triangle;
-    u8 circle;
-    u8 cross;
-    u8 square;
-};
+	unsigned short unk3;
+	unsigned char  unk4;
 
-struct SS_MOTION
-{
-    s16 acc_x;
-    s16 acc_y;
-    s16 acc_z;
-    s16 z_gyro;
-};
-
-struct SS_GAMEPAD
-{
-    u8                             hid_data;
-    u8                             unk0;
-    struct SS_BUTTONS              buttons;
-    u8                             unk1;
-    struct SS_ANALOG               left_analog;
-    struct SS_ANALOG               right_analog;
-    u32                            unk2;
-    struct SS_DPAD_SENSITIVE       dpad_sens;
-    struct SS_SHOULDER_SENSITIVE   shoulder_sens;
-    struct SS_BUTTON_SENSITIVE     button_sens;
-    u16                            unk3;
-    u8                             unk4;
-    u8                             status;
-    u8                             power_rating;
-    u8                             comm_status;
-    u32                            unk5;
-    u32                            unk6;
-    u8                             unk7;
-    struct SS_MOTION               motion;
+	unsigned char status;
+	unsigned char power_rating;
+	unsigned char comm_status;
+	unsigned int  unk5;
+	unsigned int  unk6;
+	unsigned char unk7;
+	struct {
+		unsigned short accelX;
+		unsigned short accelY;
+		unsigned short accelZ;
+		union {
+			unsigned short gyroZ;
+			unsigned short roll;
+		};
+	};
 } __attribute__((packed, aligned(32)));
 
-#define DS3PS2_INPUT_LEN (sizeof(struct SS_GAMEPAD))
+#define DS3PS2_INPUT_LEN (sizeof(struct ds3_input))
 
 #endif

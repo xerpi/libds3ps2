@@ -15,7 +15,7 @@ install: $(IOP_BIN)
 
 #FOR ME!!
 copy: $(IOP_BIN)
-	cp $(IOP_BIN) /media/$(USER)/disk
+	cp $(IOP_BIN) /media/$(USER)/MLG
 	sync
 
 include $(PS2SDK)/samples/Makefile.pref
