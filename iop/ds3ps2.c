@@ -1,10 +1,15 @@
 #include <thbase.h>
 #include <thsemap.h>
 #include <sifcmd.h>
+#include <loadcore.h>
 #include <usbd.h>
 #include <usbd_macro.h>
 #include <string.h>
 #include "ds3ps2.h"
+
+#define MODNAME "ds3ps2"
+IRX_ID(MODNAME, 1, 1);
+struct irx_export_table exp_ds3ps2;
 
 static void  rpc_thread(void *data);
 static void *rpc_server_func(int command, void *buffer, int size);
@@ -25,8 +30,6 @@ static UsbDriver driver = { NULL, NULL, "ds3ps2", usb_probe, usb_connect, usb_di
 static void request_data(int result, int count, void *arg);
 static void config_set(int result, int count, void *arg);
 static void ds3_set_operational(int slot);
-static int send_ledsrumble(int slot);
-static void set_led(int slot, unsigned char n);
 
 static struct {
 	int sema;
@@ -42,6 +45,8 @@ static struct {
 
 int _start()
 {
+	RegisterLibraryEntries(&exp_ds3ps2);
+	
 	iop_thread_t th = {
 		.attr	   = TH_C,
 		.thread	   = rpc_thread,
@@ -59,7 +64,6 @@ int _start()
 
 	return 1;
 }
-
 
 void rpc_thread(void *data)
 {
@@ -131,8 +135,8 @@ static void config_set(int result, int count, void *arg)
 	//Set operational
 	ds3_set_operational(slot);
 	//Set LED
-	set_led(slot, slot+1);
-	send_ledsrumble(slot);
+	ds3ps2_set_led(slot, slot+1);
+	ds3ps2_send_ledsrumble(slot);
 	//Start reading!
 	request_data(0, 0, (void *)slot);
 }
@@ -210,7 +214,7 @@ static u8 __attribute__((aligned(64))) ledsrumble_buf[] =
 	0x00, 0x00, 0x00, 0x00, 0x00  /* LED_5 (not soldered) */
 };
 
-static int send_ledsrumble(int slot)
+int ds3ps2_send_ledsrumble(int slot)
 {
 	WaitSema(ds3_list[slot].sema);
 
@@ -232,13 +236,17 @@ static int send_ledsrumble(int slot)
 	return ret;
 }
 
-static void set_led(int slot, unsigned char n)
+int ds3ps2_slot_connected(int slot)
+{
+	return ds3_list[slot].connected;
+}
+
+void ds3ps2_set_led(int slot, u8 n)
 {
 	ds3_list[slot].led = n;
 }
 
-static void set_rumble(int slot, unsigned char power_r, unsigned char time_r,
-	unsigned char power_l, unsigned char time_l)
+void ds3ps2_set_rumble(int slot, u8 power_r, u8 time_r, u8 power_l, u8 time_l)
 {
 	ds3_list[slot].rumble.time_r = time_r;
 	ds3_list[slot].rumble.power_r = power_r;
@@ -246,25 +254,29 @@ static void set_rumble(int slot, unsigned char power_r, unsigned char time_r,
 	ds3_list[slot].rumble.power_l = power_l;
 }
 
+void ds3ps2_get_input(int slot, u8 *buffer)
+{
+	memcpy(buffer, data_buf[slot], DS3PS2_INPUT_LEN);
+}
+
 void *rpc_server_func(int command, void *buffer, int size)
 {
 	u8 *b8 = (u8*)buffer;
 	int slot = b8[0];
 	switch (command) {
+	case DS3PS2_SLOT_CONNECTED:
+		b8[0] = ds3ps2_slot_connected(slot);
 	case DS3PS2_SET_LED:
-		set_led(slot, b8[1]);
+		ds3ps2_set_led(slot, b8[1]);
 		break;
 	case DS3PS2_SET_RUMBLE:
-		set_rumble(slot, b8[1], b8[2], b8[3], b8[4]);
+		ds3ps2_set_rumble(slot, b8[1], b8[2], b8[3], b8[4]);
 		break;
 	case DS3PS2_SEND_LEDSRUMBLE:
-		send_ledsrumble(slot);
+		ds3ps2_send_ledsrumble(slot);
 		break;
-	case DS3PS2_GET_INPUT:
-		memcpy(buffer, data_buf[slot], size);
-		break;
-	case DS3PS2_SLOT_CONNECTED:
-		b8[0] = ds3_list[slot].connected;
+	case DS3PS2_GET_FULL_INPUT:
+		ds3ps2_get_input(slot, buffer);
 		break;
 	}
 	return buffer;

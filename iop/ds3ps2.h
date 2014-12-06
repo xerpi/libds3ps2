@@ -13,12 +13,13 @@ enum DS3PS2_SLOTS {
 };
 
 enum ds3ps2_commands {
-	DS3PS2_SET_LED,			//(slot, n)
-	DS3PS2_SET_RUMBLE,		//(slot, power_r, time_r, power_l, time_l)
-	DS3PS2_SEND_LEDSRUMBLE,	//(slot, void)
-	DS3PS2_GET_INPUT,		//(slot, struct)
-	DS3PS2_SLOT_CONNECTED	//(slot)
+	DS3PS2_SLOT_CONNECTED,  //(slot)
+	DS3PS2_SET_LED,         //(slot, n)
+	DS3PS2_SET_RUMBLE,      //(slot, power_r, time_r, power_l, time_l)
+	DS3PS2_SEND_LEDSRUMBLE, //(slot, void)
+	DS3PS2_GET_FULL_INPUT   //(slot, struct)
 };
+
 
 struct ds3_input {
 	unsigned char hid_data;
@@ -95,5 +96,12 @@ struct ds3_input {
 } __attribute__((packed, aligned(32)));
 
 #define DS3PS2_INPUT_LEN (sizeof(struct ds3_input))
+
+//Exported IRX functions
+int ds3ps2_slot_connected(int slot);
+void ds3ps2_set_led(int slot, u8 n);
+void ds3ps2_set_rumble(int slot, u8 power_r, u8 time_r, u8 power_l, u8 time_l);
+int ds3ps2_send_ledsrumble(int slot);
+void ds3ps2_get_input(int slot, u8 *buffer);
 
 #endif

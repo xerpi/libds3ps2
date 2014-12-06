@@ -60,5 +60,5 @@ int ds3ps2_send_ledsrumble(int slot)
 int ds3ps2_get_input(int slot, u8 *buffer)
 {
 	buffer[0] = slot;
-	return SifCallRpc(&ds3ps2if, DS3PS2_GET_INPUT, 0, buffer, 49, buffer, 49, NULL, NULL);
+	return SifCallRpc(&ds3ps2if, DS3PS2_GET_FULL_INPUT, 0, buffer, 49, buffer, 49, NULL, NULL);
 }

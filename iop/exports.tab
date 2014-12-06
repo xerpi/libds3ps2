@@ -1,0 +1,12 @@
+DECLARE_EXPORT_TABLE(ds3ps2, 1, 1)
+    DECLARE_EXPORT(_start)
+    DECLARE_EXPORT(_retonly)
+    DECLARE_EXPORT(ds3ps2_slot_connected)
+    DECLARE_EXPORT(ds3ps2_set_led)
+    DECLARE_EXPORT(ds3ps2_set_rumble)
+    DECLARE_EXPORT(ds3ps2_send_ledsrumble)
+    DECLARE_EXPORT(ds3ps2_get_input)
+
+END_EXPORT_TABLE
+
+void _retonly() {}
