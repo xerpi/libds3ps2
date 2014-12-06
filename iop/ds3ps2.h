@@ -30,7 +30,7 @@ struct ds3_input {
 		unsigned char start  : 1;
 		unsigned char up     : 1;
 		unsigned char right  : 1;
-		unsigned char down   : 1;	
+		unsigned char down   : 1;
 		unsigned char left   : 1;
 
 		unsigned char L2       : 1;

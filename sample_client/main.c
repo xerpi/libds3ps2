@@ -69,7 +69,7 @@ int main(void)
 			sprintf(text_connected, "connected: SLOT_1 %i	SLOT_2 %i", ds3ps2_slot_connected(DS3PS2_SLOT_1),
 			ds3ps2_slot_connected(DS3PS2_SLOT_2));
 		font_print(5, 10, text_connected);
-	
+
 		int y = print_data(30, &ds3_1);
 		print_data(y+10, &ds3_2);
 
@@ -116,7 +116,7 @@ int print_data(int y, struct ds3_input *data)
 }
 
 void draw_circle(GSGLOBAL *gsGlobal, float x, float y, float radius, u64 color, u8 filled)
-{	
+{
 	float v[37*2];
 	int a;
 	float ra;

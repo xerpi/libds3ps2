@@ -1,4 +1,5 @@
 #include <thbase.h>
+#include <thsemap.h>
 #include <sifcmd.h>
 #include <usbd.h>
 #include <usbd_macro.h>
@@ -14,7 +15,6 @@ static SifRpcServerData_t rpc_server __attribute__((aligned(64)));
 static int _rpc_buffer[512] __attribute((aligned(64)));
 static u8 data_buf[DS3PS2_MAX_SLOTS][DS3PS2_INPUT_LEN] __attribute((aligned(64)));
 static u8 opbuf[17] __attribute((aligned(64)));
-static int controlEndp;
 
 static int usb_probe(int devId);
 static int usb_connect(int devId);
@@ -29,6 +29,7 @@ static int send_ledsrumble(int slot);
 static void set_led(int slot, unsigned char n);
 
 static struct {
+	int sema;
 	int devID;
 	int connected;
 	int endp;
@@ -49,10 +50,13 @@ int _start()
 		.option	   = 0
 	};
 	UsbRegisterDriver(&driver);
+
 	int thid = CreateThread(&th);
 	if (thid > 0) {
 		StartThread(thid, NULL);
-		return 0;	}
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -91,7 +95,7 @@ int usb_connect(int devId)
 	UsbConfigDescriptor *conf;
 	dev = UsbGetDeviceStaticDescriptor(devId, NULL, USB_DT_DEVICE);
 	conf = UsbGetDeviceStaticDescriptor(devId, dev, USB_DT_CONFIG);
-	controlEndp = UsbOpenEndpoint(devId, NULL);
+	int controlEndp = UsbOpenEndpoint(devId, NULL);
 	int slot = 0, i;
 	for (i = 0; i < DS3PS2_MAX_SLOTS; i++) {
 		if (!ds3_list[i].connected) {
@@ -102,6 +106,7 @@ int usb_connect(int devId)
 	ds3_list[slot].endp = controlEndp;
 	ds3_list[slot].devID = devId;
 	ds3_list[slot].connected = 1;
+	ds3_list[slot].sema = CreateMutex(IOP_MUTEX_UNLOCKED);
 
 	UsbSetDevicePrivateData(devId, NULL);
 	UsbSetDeviceConfiguration(controlEndp, conf->bConfigurationValue, config_set, (void*)slot);
@@ -113,6 +118,7 @@ int usb_disconnect(int devId)
 	int i;
 	for (i = 0; i < DS3PS2_MAX_SLOTS; i++) {
 		if (devId == ds3_list[i].devID) {
+			DeleteSema(ds3_list[i].sema);
 			ds3_list[i].connected = 0;
 		}
 	}
@@ -150,7 +156,14 @@ static void correct_data(struct ds3_input *data)
 static void request_data_cb(int result, int count, void *arg)
 {
 	int slot = (int)arg;
+
+	WaitSema(ds3_list[slot].sema);
+
 	correct_data((struct ds3_input *)data_buf[slot]);
+	DelayThread(1000); //1ms
+
+	SignalSema(ds3_list[slot].sema);
+
 	request_data(0, 0, (void *)slot);
 }
 
@@ -199,12 +212,14 @@ static u8 __attribute__((aligned(64))) ledsrumble_buf[] =
 
 static int send_ledsrumble(int slot)
 {
+	WaitSema(ds3_list[slot].sema);
+
 	ledsrumble_buf[9] = led_pattern[ds3_list[slot].led];
 	ledsrumble_buf[1] = ds3_list[slot].rumble.time_r;
 	ledsrumble_buf[2] = ds3_list[slot].rumble.power_r;
 	ledsrumble_buf[3] = ds3_list[slot].rumble.time_l;
 	ledsrumble_buf[4] = ds3_list[slot].rumble.power_l;
-	return UsbControlTransfer(ds3_list[slot].endp,
+	int ret = UsbControlTransfer(ds3_list[slot].endp,
 		INTERFACE_SET,
 		USB_REQ_SET_REPORT,
 		(USB_REPTYPE_OUTPUT<<8) | 0x01,
@@ -212,6 +227,9 @@ static int send_ledsrumble(int slot)
 		sizeof(ledsrumble_buf),
 		ledsrumble_buf,
 		NULL, NULL);
+
+	SignalSema(ds3_list[slot].sema);
+	return ret;
 }
 
 static void set_led(int slot, unsigned char n)
