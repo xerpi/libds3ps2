@@ -21,29 +21,29 @@ enum ds3ps2_commands {
 };
 
 struct ds3_input {
-	unsigned char HID_data;
+	unsigned char hid_data;
 	unsigned char unk0;
 	struct {
-		unsigned char left   : 1;
-		unsigned char down   : 1;
-		unsigned char right  : 1;
-		unsigned char up     : 1;
-		unsigned char start  : 1;
-		unsigned char R3     : 1;
-		unsigned char L3     : 1;
 		unsigned char select : 1;
+		unsigned char L3     : 1;
+		unsigned char R3     : 1;
+		unsigned char start  : 1;
+		unsigned char up     : 1;
+		unsigned char right  : 1;
+		unsigned char down   : 1;	
+		unsigned char left   : 1;
 
-		unsigned char square   : 1;
-		unsigned char cross    : 1;
-		unsigned char circle   : 1;
-		unsigned char triangle : 1;
-		unsigned char R1       : 1;
-		unsigned char L1       : 1;
-		unsigned char R2       : 1;
 		unsigned char L2       : 1;
+		unsigned char R2       : 1;
+		unsigned char L1       : 1;
+		unsigned char R1       : 1;
+		unsigned char triangle : 1;
+		unsigned char circle   : 1;
+		unsigned char cross    : 1;
+		unsigned char square   : 1;
 
-		unsigned char not_used : 7;
 		unsigned char PS       : 1;
+		unsigned char not_used : 7;
 	};
 	unsigned char unk1;
 	unsigned char leftX;

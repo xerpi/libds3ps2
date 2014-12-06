@@ -75,8 +75,12 @@ int usb_probe(int devId)
 		return 0;
 	if (dev->idVendor == DS3_VID && dev->idProduct == DS3_PID) {
 		//Check if there's an available slot
-		if (ds3_list[0].connected && ds3_list[1].connected) return 0;
-		return 1;
+		int i;
+		for (i = 0; i < DS3PS2_MAX_SLOTS; i++) {
+			//We've found an empy slot :)
+			if (!ds3_list[i].connected)
+				return 1;
+		}
 	}
 	return 0;
 }
@@ -88,11 +92,16 @@ int usb_connect(int devId)
 	dev = UsbGetDeviceStaticDescriptor(devId, NULL, USB_DT_DEVICE);
 	conf = UsbGetDeviceStaticDescriptor(devId, dev, USB_DT_CONFIG);
 	controlEndp = UsbOpenEndpoint(devId, NULL);
-	int slot = 0;
-	if (ds3_list[0].connected) slot = 1;
+	int slot = 0, i;
+	for (i = 0; i < DS3PS2_MAX_SLOTS; i++) {
+		if (!ds3_list[i].connected) {
+			slot = i;
+			break;
+		}
+	}
 	ds3_list[slot].endp = controlEndp;
-	ds3_list[slot].connected = 1;
 	ds3_list[slot].devID = devId;
+	ds3_list[slot].connected = 1;
 
 	UsbSetDevicePrivateData(devId, NULL);
 	UsbSetDeviceConfiguration(controlEndp, conf->bConfigurationValue, config_set, (void*)slot);
@@ -101,8 +110,12 @@ int usb_connect(int devId)
 
 int usb_disconnect(int devId)
 {
-	if (devId == ds3_list[0].devID) ds3_list[0].connected = 0;
-	else ds3_list[1].connected = 0;
+	int i;
+	for (i = 0; i < DS3PS2_MAX_SLOTS; i++) {
+		if (devId == ds3_list[i].devID) {
+			ds3_list[i].connected = 0;
+		}
+	}
 	return 1;
 }
 
@@ -140,7 +153,6 @@ static void request_data_cb(int result, int count, void *arg)
 	correct_data((struct ds3_input *)data_buf[slot]);
 	request_data(0, 0, (void *)slot);
 }
-
 
 static void request_data(int result, int count, void *arg)
 {

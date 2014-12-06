@@ -83,33 +83,33 @@ int print_data(int y, struct ds3_input *data)
 {
 	char text[256];
 	int x = 5;
-	sprintf(text,"PS: %i   START: %i   SELECT: %i	/\\: %i	  []: %i   O: %i   X: %i", \
+	sprintf(text,"PS: %01X  START: %01X  SELECT: %01X  /\\: %01X  []: %01X  O: %01X  X: %01X", \
 			data->PS, data->start, data->select, data->triangle, \
 			data->square, data->circle, data->cross);
 	font_print(x, y+=30, text);
 
-	sprintf(text,"L3: %i   R3: %i	L1: %i	 L2: %i	  R1: %i   R2: %i", \
+	sprintf(text,"L3: %01X  R3: %01X  L1: %01X  L2: %01X  R1: %01X  R2: %01X", \
 			 data->L3, data->R3, data->L1, data->L2, data->R1, data->R2);
 	font_print(x, y+=30, text);
 
-	sprintf(text,"UP: %i   DOWN: %i	  RIGHT: %i	  LEFT: %i	 LX: %i	  LY: %i   RX: %i	RY: %i", \
+	sprintf(text,"UP: %i  DOWN: %i  RIGHT: %i  LEFT: %i LX: %02X  LY: %02X  RX: %02X  RY: %02X", \
 			data->up, data->down, data->right, data->left,
-			data->rightX, data->leftY, data->rightX, data->rightY);
+			data->leftX, data->leftY, data->rightX, data->rightY);
 	font_print(x, y+=30, text);
 
-	sprintf(text,"aX: %i   aY: %i	aZ: %i	 Zgyro: %i", \
+	sprintf(text,"aX: %04X  aY: %04X  aZ: %04X  Zgyro: %04X", \
 			data->accelX, data->accelY, data->accelZ, data->gyroZ);
 	font_print(x, y+=30, text);
 
-	sprintf(text,"L1 predata: %i   L2 predata: %i	R1 predata: %i	 R2 predata: %i", \
+	sprintf(text,"L1 predata: %02X  L2 predata: %02X  R1 predata: %02X  R2 predata: %02X", \
 			data->L1_sens, data->L2_sens, data->R1_sens, data->R2_sens);
 	font_print(x, y+=30, text);
 
-	sprintf(text,"/\\ predata: %i	[] predata: %i	 O predata: %i	 X predata: %i",
+	sprintf(text,"/\\ predata: %02X  [] predata: %02X  O predata: %02X  X predata: %02X",
 			data->triangle_sens, data->square_sens, data->circle_sens, data->cross_sens);
 	font_print(x, y+=30, text);
 
-	sprintf(text,"UP: %i   DOWN: %i	  RIGHT: %i	  LEFT: %i", \
+	sprintf(text,"UP: %02X DOWN: %02X  RIGHT: %02X  LEFT: %02X", \
 			data->up_sens, data->down_sens, data->right_sens, data->left_sens);
 	font_print(x, y+=30, text);
 	return y;
