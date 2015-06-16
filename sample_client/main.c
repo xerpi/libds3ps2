@@ -9,16 +9,18 @@
 #include <gsToolkit.h>
 #include <libds3ps2.h>
 
-void video_init();
-void clear_screen();
-void flip_screen();
-GSGLOBAL *gsGlobal;
-GSFONTM *gsFontM;
-u64 White, Black, FontColor, Red, Blue, CircleColor;
+#define DEG2RAD(x) ((x)*0.01745329251)
 #define font_print(x, y, text) \
 	gsKit_fontm_print_scaled(gsGlobal, gsFontM, x, y, 3, 0.5f, FontColor, text)
 
-#define DEG2RAD(x) ((x)*0.01745329251)
+GSGLOBAL *gsGlobal;
+GSFONTM *gsFontM;
+u64 White, Black, FontColor, Red, Blue, CircleColor;
+
+void video_init();
+void clear_screen();
+void flip_screen();
+
 void draw_circle(GSGLOBAL *gsGlobal, float x, float y, float radius, u64 color, u8 filled);
 int print_data(int y, struct ds3_input *data);
 void correct_data(struct ds3_input *data);
@@ -27,6 +29,7 @@ void correct_data(struct ds3_input *data);
 int main(void)
 {
 	video_init();
+
 	int ret = SifLoadModule("mass:/ds3ps2.irx", 0, NULL);
 	if (ret < 0) {
 		char *txt = "Could not find 'mass:/ds3ps2.irx'";
@@ -36,19 +39,27 @@ int main(void)
 			flip_screen();
 		}
 	}
+
 	struct ds3_input ds3_1, ds3_2;
 	memset(&ds3_1, 0x0, sizeof(struct ds3_input));
 	memset(&ds3_2, 0x0, sizeof(struct ds3_input));
+
 	ds3ps2_init();
+
 	float pos_x = gsGlobal->Width/2, pos_y = gsGlobal->Height/2;
 	char text_connected[64];
 	int led = 1, old_r1 = 0;
+
 	while (!(ds3_1.PS && ds3_1.start)) {
 		clear_screen();
 
 		ds3ps2_get_input(DS3PS2_SLOT_1, (void*)&ds3_1);
 		ds3ps2_get_input(DS3PS2_SLOT_2, (void*)&ds3_2);
-			if (ds3_1.L1) {pos_x = gsGlobal->Width/2, pos_y = gsGlobal->Height/2;}
+
+		if (ds3_1.L1) {
+			pos_x = gsGlobal->Width/2;
+			pos_y = gsGlobal->Height/2;
+		}
 		if (ds3_1.R1 && !old_r1) {
 			led++;
 			if (led > 7) led = 0;
@@ -57,16 +68,19 @@ int main(void)
 		}
 		old_r1 = ds3_1.R1;
 
-			#define THRESHOLD 5.0f
+		#define THRESHOLD 5.0f
 		if (fabs(ds3_1.accelY) > THRESHOLD)
 			pos_y -= ds3_1.accelY;
 		if (fabs(ds3_1.gyroZ) > THRESHOLD)
 			pos_x -= ds3_1.gyroZ/5.0f;
-			draw_circle(gsGlobal, pos_x, pos_y, 19, CircleColor, 0);
+
+		draw_circle(gsGlobal, pos_x, pos_y, 19, CircleColor, 0);
 		draw_circle(gsGlobal, pos_x, pos_y, 18, CircleColor, 0);
 		draw_circle(gsGlobal, pos_x, pos_y, 17, CircleColor, 0);
 		draw_circle(gsGlobal, pos_x, pos_y, 16, CircleColor, 0);
-			sprintf(text_connected, "connected: SLOT_1 %i	SLOT_2 %i", ds3ps2_slot_connected(DS3PS2_SLOT_1),
+
+		sprintf(text_connected, "connected: SLOT_1 %i	SLOT_2 %i",
+			ds3ps2_slot_connected(DS3PS2_SLOT_1),
 			ds3ps2_slot_connected(DS3PS2_SLOT_2));
 		font_print(5, 10, text_connected);
 
@@ -84,8 +98,8 @@ int print_data(int y, struct ds3_input *data)
 	char text[256];
 	int x = 5;
 	sprintf(text,"PS: %01X  START: %01X  SELECT: %01X  /\\: %01X  []: %01X  O: %01X  X: %01X", \
-			data->PS, data->start, data->select, data->triangle, \
-			data->square, data->circle, data->cross);
+		data->PS, data->start, data->select, data->triangle, \
+		data->square, data->circle, data->cross);
 	font_print(x, y+=30, text);
 
 	sprintf(text,"L3: %01X  R3: %01X  L1: %01X  L2: %01X  R1: %01X  R2: %01X", \
@@ -93,25 +107,27 @@ int print_data(int y, struct ds3_input *data)
 	font_print(x, y+=30, text);
 
 	sprintf(text,"UP: %i  DOWN: %i  RIGHT: %i  LEFT: %i LX: %02X  LY: %02X  RX: %02X  RY: %02X", \
-			data->up, data->down, data->right, data->left,
-			data->leftX, data->leftY, data->rightX, data->rightY);
+		data->up, data->down, data->right, data->left,
+		data->leftX, data->leftY, data->rightX, data->rightY);
 	font_print(x, y+=30, text);
 
 	sprintf(text,"aX: %04X  aY: %04X  aZ: %04X  Zgyro: %04X", \
-			data->accelX, data->accelY, data->accelZ, data->gyroZ);
+		data->accelX, data->accelY, data->accelZ, data->gyroZ);
 	font_print(x, y+=30, text);
 
 	sprintf(text,"L1 predata: %02X  L2 predata: %02X  R1 predata: %02X  R2 predata: %02X", \
-			data->L1_sens, data->L2_sens, data->R1_sens, data->R2_sens);
+		data->L1_sens, data->L2_sens, data->R1_sens, data->R2_sens);
 	font_print(x, y+=30, text);
 
 	sprintf(text,"/\\ predata: %02X  [] predata: %02X  O predata: %02X  X predata: %02X",
-			data->triangle_sens, data->square_sens, data->circle_sens, data->cross_sens);
+		data->triangle_sens, data->square_sens, data->circle_sens, data->cross_sens);
 	font_print(x, y+=30, text);
 
 	sprintf(text,"UP: %02X DOWN: %02X  RIGHT: %02X  LEFT: %02X", \
-			data->up_sens, data->down_sens, data->right_sens, data->left_sens);
+		data->up_sens, data->down_sens, data->right_sens, data->left_sens);
+
 	font_print(x, y+=30, text);
+
 	return y;
 }
 
@@ -120,17 +136,22 @@ void draw_circle(GSGLOBAL *gsGlobal, float x, float y, float radius, u64 color, 
 	float v[37*2];
 	int a;
 	float ra;
+
 	for (a = 0; a < 36; a++) {
 		ra = DEG2RAD(a*10);
 		v[a*2] = cos(ra) * radius + x;
 		v[a*2+1] = sin(ra) * radius + y;
 	}
+
 	if (!filled) {
-		v[72] = radius + x;
-		v[73] = y;
+		v[36*2] = radius + x;
+		v[36*2 + 1] = y;
 	}
-	if (filled) gsKit_prim_triangle_fan(gsGlobal, v, 36, 3, color);
-	else		gsKit_prim_line_strip(gsGlobal, v, 37, 3, color);
+
+	if (filled)
+		gsKit_prim_triangle_fan(gsGlobal, v, 36, 3, color);
+	else
+		gsKit_prim_line_strip(gsGlobal, v, 37, 3, color);
 }
 
 void video_init()
