@@ -13,6 +13,13 @@ sysclib_IMPORTS_start
 I_memcpy
 sysclib_IMPORTS_end
 
+thbase_IMPORTS_start
+I_CreateThread
+I_DelayThread
+I_StartThread
+I_GetThreadId
+thbase_IMPORTS_end
+
 thsemap_IMPORTS_start
 I_CreateSema
 I_SignalSema
